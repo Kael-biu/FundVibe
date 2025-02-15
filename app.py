@@ -8,9 +8,10 @@ import io
 from pathlib import Path
 import tempfile
 
+BASE_DIR=Path(__file__).parent
 app=Flask(__name__)
-app.config['UPLOAD_FOLDER'] = tempfile.gettempdir() # 临时目录
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp(dir=BASE_DIR)  # 临时目录
+app.config['UPLOAD_FOLDER']=BASE_DIR / 'static'  #明确静态文件路径
 
 @app.route('/',methods=['GET','POST'])
 def index():
@@ -106,6 +107,6 @@ def download_excel():
     output.seek(0)
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name='analysis_data.xlsx')
 
-# if __name__ =='__main__':
-#     port = int(os.environ.get('PORT', 5000))
-#     app.run(host='0.0.0.0', port=port)
+if __name__ =='__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
