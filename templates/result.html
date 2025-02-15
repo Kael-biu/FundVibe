@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>分析结果</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.1/echarts.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">您的基金分析报告</h1>
+
+        <!-- 关键指标卡片 -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h3 class="card-title">年化收益率</h3>
+                        <p class="card-text">{{ annual_return }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h3 class="card-title">最大回撤</h3>
+                        <p class="card-text">{{ max_drawdown }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据表格 -->
+        <h2>历史净值数据</h2>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>单位净值</th>
+                    <th>累计收益率</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in table_data %}
+                <tr>
+                    <td>{{ row['日期'].strftime('%Y-%m-%d') }}</td>
+                    <td>{{ "%.4f"|format(row['单位净值']) }}</td>
+                    <td>{{ "%.2f%%"|format(row['累计收益率'] * 100) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Matplotlib 静态图表 -->
+        <h2>收益曲线（Matplotlib）</h2>
+        <img src="{{ url_for('static', filename='images/cumulative_return.png') }}" alt="收益曲线" class="img-fluid">
+        <h2>净值走势图（Matplotlib）</h2>
+        <img src="{{ url_for('static', filename='images/net_value_trend.png') }}" alt="净值走势" class="img-fluid">
+
+        <!-- ECharts 动态图表 -->
+        <h2>净值走势图（ECharts）</h2>
+        <div id="chart" style="width: 100%; height: 400px;"></div>
+        <script>
+            var chart = echarts.init(document.getElementById('chart'));
+            var option = {
+                title: {
+                    text: '基金净值动态走势'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                toolbox: {
+                    feature: {
+                        saveAsImage: {},
+                        dataZoom: {
+                            yAxisIndex: 'none'
+                        },
+                        restore: {}
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: {{ dates|tojson }}
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [{
+                    name: '单位净值',
+                    type: 'line',
+                    smooth: true,
+                    data: {{ values|tojson }},
+                    itemStyle: {
+                        color: '#5470c6'
+                    }
+                }]
+            };
+            chart.setOption(option);
+        </script>
+
+        <!-- 返回按钮 -->
+        <a href="/" class="btn btn-primary">重新分析</a>
+
+        <!-- 下载按钮 -->
+        <a href="{{ url_for('download_csv') }}" class="btn btn-primary">下载为 CSV 文件</a>
+        <a href="{{ url_for('download_excel') }}" class="btn btn-primary">下载为 Excel 文件</a>
+    </div>
+
+    <!-- 加载动画 -->
+    <div id="loading" style="text-align: center; display: none;">
+        <img src="{{ url_for('static', filename='images/loading.gif') }}" alt="Loading">
+    </div>
+    <script>
+        window.onload = function() {
+            document.getElementById('loading').style.display = 'none';
+        };
+    </script>
+</body>
+</html>
