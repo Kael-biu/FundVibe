@@ -54,9 +54,9 @@
 
         <!-- Matplotlib 静态图表 -->
         <h2>收益曲线（Matplotlib）</h2>
-        <img src="{{ url_for('static', filename='images/cumulative_return.png') }}" alt="收益曲线" class="img-fluid">
+        < img src="data:image/png;base64,{{ plot_data1 }}" class="img-fluid">
         <h2>净值走势图（Matplotlib）</h2>
-        <img src="{{ url_for('static', filename='images/net_value_trend.png') }}" alt="净值走势" class="img-fluid">
+        < img src="data:image/png;base64,{{ plot_data2 }}" class="img-fluid">
 
         <!-- ECharts 动态图表 -->
         <h2>净值走势图（ECharts）</h2>

@@ -3,15 +3,17 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import os
 import io
+import base64
 from pathlib import Path
 import tempfile
+import serverless_http  # 新增依赖
 
-BASE_DIR=Path(__file__).parent
 app=Flask(__name__)
-app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp(dir=BASE_DIR)  # 临时目录
-app.config['UPLOAD_FOLDER']=BASE_DIR / 'static'  #明确静态文件路径
+app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
+
+# 禁用静态文件缓存（Vercel无本地存储）
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.route('/',methods=['GET','POST'])
 def index():
@@ -19,94 +21,99 @@ def index():
         #处理上传的文件
         file=request.files['file']
         if file and file.filename.endswith('.xlsx'):
-            filename=Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx'
-            file.save(filename)
+            # 内存处理Excel文件
+            in_memory_file = io.BytesIO()
+            file.save(in_memory_file)
+            in_memory_file.seek(0)
+
+            # 存储到临时目录（内存中）
+            temp_path = Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx'
+            with open(temp_path, 'wb') as f:
+                f.write(in_memory_file.read())
+
             return redirect(url_for('analyze'))
     return render_template('upload.html')
 
 @app.route('/analyze')
 def analyze():
-    # 读取用户上传的数据
-    df=pd.read_excel(Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx')
+    try:
+        # 读取用户上传的数据
+        df=pd.read_excel(Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx')
 
-    #执行分析逻辑（复用之前的代码）
-    df['日期'] = pd.to_datetime(df['日期'],format='%Y%m%d', errors='coerce')   #转为datetime类型
-    df['日收益率'] = df['单位净值'].pct_change()  # pct_change()用来计算相邻数据的百分比变化（今日净值/昨日净值-1）
-    df['累计收益率'] = (1 + df['日收益率']).cumprod() - 1
-    df=df.sort_values('日期') #按日期排序
-    df.set_index('日期', inplace=True)
+        #执行分析逻辑（复用之前的代码）
+        df['日期'] = pd.to_datetime(df['日期'],format='%Y%m%d', errors='coerce')   #转为datetime类型
+        df['日收益率'] = df['单位净值'].pct_change()  # pct_change()用来计算相邻数据的百分比变化（今日净值/昨日净值-1）
+        df['累计收益率'] = (1 + df['日收益率']).cumprod() - 1
+        df=df.sort_values('日期') #按日期排序
+        df.set_index('日期', inplace=True)
 
-    #关键指标计算
-    annual_return = df['日收益率'].mean() * 252  # 简单平均法
-    max_drawdown = (df['单位净值']/df['单位净值'].cummax()-1).min()
+        #关键指标计算
+        annual_return = df['日收益率'].mean() * 252  # 简单平均法
+        max_drawdown = (df['单位净值']/df['单位净值'].cummax()-1).min()
 
-    #生成收益曲线图
-    plt.rcParams['font.sans-serif'] = ['SimHei']  # windows系统黑体
-    plt.rcParams['axes.unicode_minus'] = False
+        #生成收益曲线图
+        plt.rcParams['font.sans-serif'] = ['SimHei']  # windows系统黑体
+        plt.rcParams['axes.unicode_minus'] = False
 
-    plot_path1 = BASE_DIR / 'static' / 'images' / 'cumulative_return.png'
-    os.makedirs(os.path.dirname(plot_path1),exist_ok=True)
-    plt.figure(figsize=(10,4))
-    df['累计收益率'].plot(title='用户数据累计收益率')  # 直接绘制列
-    plt.xlabel('日期')
-    plt.ylabel('累计收益率')
-    plt.savefig(plot_path1)
+        # 生成图表并转为Base64（替代保存到本地）
+        img_buffer1 = io.BytesIO()
+        df['累计收益率'].plot(title='累计收益率曲线')
+        plt.tight_layout()
+        plt.savefig(img_buffer1, format='png')
+        plt.close()
+        plot_data1 = base64.b64encode(img_buffer1.getvalue()).decode()
 
-    #生成净值走势图
-    plot_path2 = BASE_DIR / 'static' / 'images' / 'net_value_trend.png'
-    plt.figure(figsize=(10, 4))
-    df['单位净值'].plot(title='Fund Net Value Trend')
-    plt.savefig(plot_path2)
-    plt.close()
+        img_buffer2 = io.BytesIO()
+        df['单位净值'].plot(title='净值走势图')
+        plt.tight_layout()
+        plt.savefig(img_buffer2, format='png')
+        plt.close()
+        plot_data2 = base64.b64encode(img_buffer2.getvalue()).decode()
 
-    #准备Echarts数据
-    dates=df.index.strftime('%Y-%m-%d').tolist()
-    values=df['单位净值'].tolist()
-    # df = df.reset_index()
-    df_reset=df.reset_index().rename(columns={'index':'日期'})
-    table_data = df_reset.head(10).to_dict('records')
+        #准备Echarts数据
+        dates=df.index.strftime('%Y-%m-%d').tolist()
+        values=df['单位净值'].tolist()
+        # df = df.reset_index()
+        df_reset=df.reset_index().rename(columns={'index':'日期'})
+        table_data = df_reset.head(10).to_dict('records')
 
-    return render_template('result.html',
-                           table_data=table_data,
-                           annual_return=f"{annual_return:.2%}",
-                           max_drawdown=f"{max_drawdown:.2%}",
-                           dates=dates,
-                           values=values,
-                           plot_path1=plot_path1,
-                           plot_path2=plot_path2)
+        return render_template('result.html',
+                               table_data=table_data,
+                               annual_return=f"{annual_return:.2%}",
+                               max_drawdown=f"{max_drawdown:.2%}",
+                               dates=dates,
+                               values=values,
+                               plot_data1=plot_data1,
+                               plot_data2=plot_data2)
+    except Exception as e:
+        return f"分析错误：{str(e)}",500
 @app.route('/download_csv')
 def download_csv():
-    # 读取用户上传的数据并执行分析逻辑
-    df = pd.read_excel(Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx')
-    df['日期'] = pd.to_datetime(df['日期'], format='%Y%m%d', errors='coerce')
-    df['日收益率'] = df['单位净值'].pct_change()
-    df['累计收益率'] = (1 + df['日收益率']).cumprod() - 1
-    df = df.sort_values('日期')
-    df.set_index('日期', inplace=True)
-
-    # 将分析结果保存为 CSV 文件
+    temp_path = Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx'
+    df = pd.read_excel(temp_path)
     output = io.StringIO()
-    df.to_csv(output, index=True, encoding='utf-8-sig')
+    df.to_csv(output, index=False, encoding='utf-8-sig')
     output.seek(0)
-    return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=analysis_data.csv"})
+    return Response(
+        output,
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment;filename=analysis.csv'}
+    )
 
 @app.route('/download_excel')
 def download_excel():
-    # 读取用户上传的数据并执行分析逻辑
-    df = pd.read_excel(Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx')
-    df['日期'] = pd.to_datetime(df['日期'], format='%Y%m%d', errors='coerce')
-    df['日收益率'] = df['单位净值'].pct_change()
-    df['累计收益率'] = (1 + df['日收益率']).cumprod() - 1
-    df = df.sort_values('日期')
-    df.set_index('日期', inplace=True)
-
-    # 将分析结果保存为 Excel 文件
+    temp_path = Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx'
+    df = pd.read_excel(temp_path)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=True, sheet_name='Sheet1')
+        df.to_excel(writer, index=False)
     output.seek(0)
-    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name='analysis_data.xlsx')
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='analysis.xlsx'
+    )
 
-if __name__ =='__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
+# Serverless适配
+handler = serverless_http(app)
