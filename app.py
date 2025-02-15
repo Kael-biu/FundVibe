@@ -7,7 +7,7 @@ import io
 import base64
 from pathlib import Path
 import tempfile
-import os  # 新增依赖
+import serverless_wsgi  # 新增依赖
 
 app=Flask(__name__)
 app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
@@ -115,8 +115,5 @@ def download_excel():
         download_name='analysis.xlsx'
     )
 
-# # Serverless适配
-# handler = serverless_http(app)
-if __name__ =='__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+# Serverless适配
+handler = serverless_wsgi(app)
