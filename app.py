@@ -119,4 +119,5 @@ def download_excel():
     )
 
 # Serverless适配
-handler = serverless_wsgi.handle_request(app)
+def handler(event, context):
+    return serverless_wsgi.handle_request(app, event, context)
