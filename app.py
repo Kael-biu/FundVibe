@@ -4,6 +4,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import io
+import os
 import base64
 from pathlib import Path
 import tempfile
@@ -11,6 +12,8 @@ import serverless_wsgi  # 新增依赖
 
 app=Flask(__name__)
 app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
+app.config['MPL_TEMP_DIR']=tempfile.mkdtemp()
+os.environ['MPLCONFIGDIR']=app.config['MPL_TEMP_DIR']
 
 # 禁用静态文件缓存（Vercel无本地存储）
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
