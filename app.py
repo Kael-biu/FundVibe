@@ -8,7 +8,7 @@ import os
 import base64
 from pathlib import Path
 import tempfile
-import serverless_wsgi  # 新增依赖
+from vercel-python-wsgi import wsgi_handler  # 新增依赖
 
 app=Flask(__name__)
 app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
@@ -119,5 +119,4 @@ def download_excel():
     )
 
 # Serverless适配
-def handler(event, context):
-    return serverless_wsgi.handle_request(app, event, context)
+handler=wsgi_handler(app)
