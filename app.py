@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, Response
+from flask import Flask, render_template, request, redirect, url_for, send_file, Response,send_from_directory
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
@@ -93,7 +93,11 @@ def analyze():
 
 @app.route('/favicon.ico')
 def favicon():
-    return send_file(Path(app.static_folder) / 'favicon.ico')
+    return send_from_directory(
+        app.static_folder,
+        'favicon.ico',
+        mimetype='image/vnd.microsoft.icon'
+    )
 
 @app.route('/download_csv')
 def download_csv():
