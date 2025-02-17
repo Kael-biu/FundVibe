@@ -10,7 +10,7 @@ from pathlib import Path
 import tempfile
 
 
-app=Flask(__name__)
+app=Flask(__name__,static_folder='static',template_folder='templates')
 app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
 app.config['MPL_TEMP_DIR']=tempfile.mkdtemp()
 os.environ['MPLCONFIGDIR']=app.config['MPL_TEMP_DIR']
@@ -90,6 +90,11 @@ def analyze():
                                plot_data2=plot_data2)
     except Exception as e:
         return f"分析错误：{str(e)}",500
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_file(Path(app.static_folder) / 'favicon.ico')
+
 @app.route('/download_csv')
 def download_csv():
     temp_path = Path(app.config['UPLOAD_FOLDER']) / 'user_data.xlsx'
