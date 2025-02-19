@@ -2,18 +2,19 @@ from flask import Flask, render_template, request, redirect, url_for, send_file,
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import io
 import os
-import base64
-from pathlib import Path
 import tempfile
+from pathlib import Path
+import io
+import base64
 
-
-app=Flask(__name__,static_folder='static',template_folder='templates')
+#初始化Flask应用
+app=Flask(__name__)
 app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
 app.config['MPL_TEMP_DIR']=tempfile.mkdtemp()
 os.environ['MPLCONFIGDIR']=app.config['MPL_TEMP_DIR']
+
+import matplotlib.pyplot as plt
 
 # 禁用静态文件缓存（Vercel无本地存储）
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
