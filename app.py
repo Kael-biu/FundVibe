@@ -77,7 +77,6 @@ def analyze():
         #准备Echarts数据
         dates=df.index.strftime('%Y-%m-%d').tolist()
         values=df['单位净值'].tolist()
-        # df = df.reset_index()
         df_reset=df.reset_index().rename(columns={'index':'日期'})
         table_data = df_reset.head(10).to_dict('records')
 
@@ -95,7 +94,7 @@ def analyze():
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(
-        app.static_folder,
+        os.path.join(os.getcwd(), 'static'),
         'favicon.ico',
         mimetype='image/vnd.microsoft.icon'
     )
@@ -127,3 +126,5 @@ def download_excel():
         as_attachment=True,
         download_name='analysis.xlsx'
     )
+if __name__ == "__main__":
+    app.run(debug=True)
