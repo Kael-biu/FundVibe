@@ -44,6 +44,27 @@ python app.py
 
 访问 http://localhost:5000 上传文件
 
+### 平台界面展示
+#### 数据上传页面
+<div align="center">
+  <img src="images/upload_page.png" alt="数据上传页面" width="80%">
+</div>
+
+#### 分析报告结果页
+<div align="center">
+  <img src="images/analysis_report.png" alt="分析报告结果" width="80%">
+</div>
+
+#### 收益曲线可视化
+<div align="center">
+  <img src="images/matplotlib_charts.png" alt="matplotlib可视图" width="80%">
+</div>
+
+#### 净值走势可视化
+<div align="center">
+  <img src="images/echarts_chart.png" alt="ECharts 净值走势图" width="80%">
+</div>
+
 📊 技术栈
 后端：Python 3.10 + Flask
 数据处理：Pandas
